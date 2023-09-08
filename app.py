@@ -1,10 +1,13 @@
-from flask import Flask, request, session, redirect, url_for, flash
+from flask import Flask, request, session, make_response, jsonify
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+from functools import wraps
 import os
 import re
 import psycopg2
 import psycopg2.extras
+import jwt
 
 CREATE_USERS_TABLE = """CREATE TABLE IF NOT EXISTS users (
                         id SERIAL PRIMARY KEY, 
@@ -34,13 +37,31 @@ connection = psycopg2.connect(url)
 #psycopg2.connect(dbname=DB_NAME_ENV_VAR, user=DB_USER_ENV, password=DB_PASSWRD_ENV_VAR, host=DB_HOST_ENV_VAR)
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY")
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
+
+def token_requireed(func):
+    @wraps(func)
+    def decorated(*args, **kwargs):
+        token = request.args.get('token')
+        if not token:
+            return jsonify({'Alert': 'Token missing!'})
+        try:
+            payload = jwt.decode(token, app.config['SECRET_KEY'])
+        except:
+            return jsonify({"Alert": "Invalid Token"})
+    return decorated
 
 @app.route("/")
 def home():
     if 'loggedin' in session:
         return {"message": {session['user_name']}}, 201
     return {"message": "User is not logged in!"}
+
+@app.route("/api/auth")
+@token_requireed
+def auth():
+    return {"message": "Authenticated!"}
+
 @app.post("/api/login")
 def login():
     data = request.get_json()
@@ -54,15 +75,22 @@ def login():
 
             if account:
                 password_rs = account['password']
+                token = jwt.encode({
+                    'user': account["user_name"],
+                    'expiration': str(datetime.utcnow() + timedelta(seconds=120))
+                },
+                app.config['SECRET_KEY'])
+
                 if check_password_hash(password_rs, password):
                     session['loggedin'] =  True
                     session['id'] = account['id']
                     session['user_name'] = account['user_name']
-                    return {"message": "Login successful!"}, 201
+                    return ({"message": "Login successful!", "token": token}), 201
                 else:
-                    return {"message": "Please check user name and/or password"}
+                    return make_response("Unable to verify", 403, {"WWW-Authenticate": "Basic real: 'Authentication Failed!'"})
             else:
                 return {"message": "Account not found!"}
+            
 @app.post("/api/signup")
 def register():
     data = request.get_json()
