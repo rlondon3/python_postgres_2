@@ -20,7 +20,7 @@ CREATE_USERS_TABLE = """CREATE TABLE IF NOT EXISTS users (
                         password VARCHAR (255) NOT NULL
                         )"""
 CREATE_INCREMENT_USERS_TABLE = "CREATE TABLE increment_users (id serial PRIMARY KEY)"
-GET_USER = "SELECT * FROM users WHERE user_name = %s"
+GET_USER = "SELECT * FROM users WHERE user_name = %s;"
 INSERT_INTO_USERS_TABLE_RETURNING_ID = """INSERT INTO users (
                                         first_name, 
                                         last_name, 
