@@ -119,4 +119,5 @@ def register():
                 cursor.execute(INSERT_INTO_USERS_TABLE_RETURNING_ID, (first_name, last_name, city, state, user_name, email, generate_password_hash(password)))
                 connection.commit()
                 return {"message": "User successful registered"}, 201
+#Will expand this 
 
